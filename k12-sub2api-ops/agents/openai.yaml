@@ -1,0 +1,4 @@
+interface:
+  display_name: "K12 Sub2API Ops"
+  short_description: "K12 account bundle and Sub2API import workflow"
+  default_prompt: "Use $k12-sub2api-ops to turn K12 account packages into a safe Sub2API import plan."

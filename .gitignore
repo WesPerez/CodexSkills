@@ -1,0 +1,14 @@
+*
+!/.gitignore
+
+!/codex-plugin-troubleshooter/
+!/codex-plugin-troubleshooter/**
+
+!/k12-sub2api-ops/
+!/k12-sub2api-ops/**
+
+!/linux-do-k12-space-id/
+!/linux-do-k12-space-id/**
+
+!/linux-do-research/
+!/linux-do-research/**

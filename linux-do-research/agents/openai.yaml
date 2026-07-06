@@ -1,0 +1,4 @@
+interface:
+  display_name: "LINUX DO Research"
+  short_description: "Network-first LINUX DO search with Edge fallback"
+  default_prompt: "Use $linux-do-research to search LINUX DO with network methods first, then use Edge/browser fallback only when stronger evidence, missing floors, attachments, bookmarks, or current-tab details require it."

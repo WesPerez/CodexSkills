@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex Plugin Troubleshooter"
+  short_description: "Diagnose Codex browser/plugin tool issues"
+  default_prompt: "Use $codex-plugin-troubleshooter to diagnose why Codex Chrome, Browser Use, Computer Use, node_repl, or app connector tools are missing or broken."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "LINUX DO K12 Space IDs"
+  short_description: "Fast source-marked K12 workspace ID search"
+  default_prompt: "Use $linux-do-k12-space-id to collect recent LINUX DO K12 workspace IDs with sources."
