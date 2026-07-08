@@ -1,0 +1,4 @@
+interface:
+  display_name: "Browser Bookmarks"
+  short_description: "Safely organize and migrate browser bookmarks"
+  default_prompt: "Use $browser-bookmarks to organize, migrate, back up, or restore Edge/Chrome bookmarks safely."
