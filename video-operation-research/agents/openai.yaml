@@ -1,0 +1,4 @@
+interface:
+  display_name: "视频操作研究"
+  short_description: "先取证再复刻视频教程"
+  default_prompt: "使用 $video-operation-research 分析这个视频流程，再判断是否可以复刻操作。"
