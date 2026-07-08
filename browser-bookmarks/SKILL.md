@@ -1,99 +1,99 @@
 ---
 name: browser-bookmarks
-description: Safely organize, deduplicate, migrate, back up, restore, or inspect Chromium browser bookmarks and favorites, especially Microsoft Edge and Google Chrome profile `Bookmarks` files. Use when a user asks Codex to clean up Edge/Chrome favorites, preserve bookmark bar habits, move items across folders, copy Edge bookmarks to Chrome, recover from sync overwrites or duplicate bookmark trees, validate backups, handle bookmark checksum issues, or reason about favicon/bookmark sync side effects.
+description: 安全整理、去重、迁移、备份、还原或检查 Chromium 系浏览器书签/收藏夹，尤其是 Microsoft Edge 和 Google Chrome 配置目录中的 `Bookmarks` 文件。用户要求清理 Edge/Chrome 收藏夹、保留书签栏使用习惯、跨文件夹归类、把 Edge 书签复制到 Chrome、处理同步覆盖或重复书签树、校验备份、处理书签 checksum，或分析 favicon/同步副作用时使用。
 ---
 
-# Browser Bookmarks
+# 浏览器书签
 
-## Operating Contract
+## 工作契约
 
-Inputs: target browser, profile path, user intent, preservation rules, and permission state for closing browser windows or background processes.
+输入：目标浏览器、配置目录、用户意图、需要保留的使用习惯，以及是否授权关闭浏览器窗口或后台进程。
 
-Outputs: backup paths, before/after inventory, mutation method, verification evidence, cleanup report, and restore instructions.
+输出：备份路径、整理前后清单、实际变更方式、验证证据、清理报告和可回滚说明。
 
-Status labels: `audit-only`, `backup-created`, `api-mutation-applied`, `raw-file-fallback-applied`, `restore-ready`, `partial-sync-verified`, `blocked-needs-browser-close`, `blocked-needs-user-authorization`, `blocked-cloud-state-unknown`.
+状态标签：`只读审计`、`已创建备份`、`已通过API变更`、`已使用文件兜底`、`可还原`、`同步部分验证`、`阻塞-需要关闭浏览器`、`阻塞-需要用户授权`、`阻塞-云端状态未知`。
 
-Handoff: use `chrome:control-chrome` only when the user explicitly wants Chrome browser control or existing Chrome state; use `browser:control-in-app-browser` for in-app browser work; use `computer-use:computer-use` only when native UI interaction is required. Prefer local file inspection and Chromium bookmark APIs for bookmark work.
+交接规则：只有用户明确要求控制 Chrome 或依赖现有 Chrome 登录状态时，才交给 `chrome:control-chrome`；需要内置浏览器时交给 `browser:control-in-app-browser`；只有必须操作原生桌面界面时才交给 `computer-use:computer-use`。书签任务优先使用本地文件检查和 Chromium 书签 API。
 
-## Start Checklist
+## 开始检查
 
-1. Identify the browser and profile exactly. In this Windows environment, default to Microsoft Edge unless the user explicitly says Chrome. Edge usually lives under `%LOCALAPPDATA%\Microsoft\Edge\User Data\<Profile>`, Chrome under `%LOCALAPPDATA%\Google\Chrome\User Data\<Profile>`. Read `Local State` when the active profile is unclear.
-2. Record whether the user authorized closing windows/background processes. If not authorized, ask before closing or killing anything. If authorized, still close only the target browser processes and explain why background processes exist.
-3. Create a timestamped backup of the live `Bookmarks` file before any mutation. Also back up `Favicons` before any icon work.
-4. Run `scripts/chromium_bookmarks_audit.mjs` on the current file. When preserving bookmark bar habits, also run it against the backup after changes with `--baseline`.
-5. Define preservation rules before changing anything: direct URLs on the bookmark bar, pinned high-frequency folders, duplicate URLs that are intentional shortcuts, mobile/synced roots, and any folders the user said not to merge.
+1. 精确确认浏览器和配置目录。在这个 Windows 环境里，除非用户明确说 Chrome，否则默认处理 Microsoft Edge。Edge 通常位于 `%LOCALAPPDATA%\Microsoft\Edge\User Data\<Profile>`，Chrome 通常位于 `%LOCALAPPDATA%\Google\Chrome\User Data\<Profile>`。如果活动 profile 不清楚，先读 `Local State`。
+2. 记录用户是否授权关闭窗口或后台进程。未授权时，关闭窗口、结束进程前必须询问；已授权时，也只关闭目标浏览器进程，并解释后台进程为何存在。
+3. 任何变更前，先给 live `Bookmarks` 文件创建带时间戳的备份。处理图标问题前，也要备份 `Favicons`。
+4. 对当前文件运行 `scripts/chromium_bookmarks_audit.mjs`。如果用户要求保留书签栏习惯，变更后还要带 `--baseline` 对备份做对比。
+5. 变更前先定义保留规则：书签栏根部独立 URL、高频固定文件夹、作为快捷入口刻意重复的 URL、移动端/同步根节点，以及用户明确说不要合并的文件夹。
 
-## Decision Tree
+## 决策路径
 
-- For read-only diagnosis, backup planning, or restore planning: inspect files and produce a report; do not start browsers unless needed.
-- For organizing one live Edge/Chrome profile: generate a candidate plan from an offline copy, then apply it with `chrome.bookmarks` API through a temporary local extension. Avoid raw JSON replacement as the primary path.
-- For copying Edge to Chrome or repairing Chrome after sync: compare URL sets first. Prefer add-only or delete/rebuild operations through Chrome's bookmarks API while Chrome sync is online. Raw file patching is a fallback, not the default.
-- For restoring from backup: close the browser, copy the selected backup to `Bookmarks`, verify checksum and parseability, start the browser, then re-check after a short sync window.
-- For favicon issues: do not promise durable repair by copying or editing `Favicons`. Chrome can overwrite manual SQLite changes from memory. Reliable favicon population usually requires Chrome to load the bookmarked pages.
+- 只读诊断、备份规划或还原规划：只检查文件并输出报告；除非必要，不启动浏览器。
+- 整理单个 live Edge/Chrome profile：先基于离线副本生成候选方案，再通过临时本地扩展调用 `chrome.bookmarks` API 应用。不要把直接替换 JSON 当作首选方案。
+- 将 Edge 复制到 Chrome，或修复 Chrome 同步后的书签：先比较 URL 集合。Chrome 同步在线时，优先通过 Chrome 书签 API 做增量添加，或在明确需要时清空并重建可写桌面根节点。直接改文件只是兜底。
+- 从备份还原：关闭浏览器，把选定备份复制为 `Bookmarks`，验证 JSON 和 checksum，再启动浏览器，并等待短暂同步窗口后复查。
+- 处理 favicon：不要承诺通过复制或编辑 `Favicons` 就能持久修好图标。Chrome 可能用内存状态覆盖手工 SQLite 修改。可靠刷新通常需要让 Chrome 实际加载对应书签页面。
 
-## Safe Mutation Workflow
+## 安全变更流程
 
-Use a temporary MV3 extension for live bookmark mutations:
+live 书签变更优先使用临时 MV3 扩展：
 
 - `manifest_version: 3`
 - `permissions: ["bookmarks"]`
-- optional callback host permission such as `http://127.0.0.1:<port>/*`
-- background service worker that calls `chrome.bookmarks.getTree`, `getChildren`, `create`, `move`, and `removeTree`
-- an execution lock such as `organizePromise` so `onInstalled` and `onStartup` cannot race
-- a local callback report with counts, moved nodes, skipped nodes, and errors
+- 可选回调地址权限，例如 `http://127.0.0.1:<port>/*`
+- 后台 service worker 调用 `chrome.bookmarks.getTree`、`getChildren`、`create`、`move`、`removeTree`
+- 使用类似 `organizePromise` 的执行锁，避免 `onInstalled` 和 `onStartup` 并发执行
+- 生成本地回调报告，记录数量、移动节点、跳过节点和错误
 
-Keep mutation conservative:
+保持变更保守：
 
-- Preserve direct bookmark bar URLs when the user wants existing habits kept.
-- Move folders across top-level categories only when the category is clearly wrong or the user has authorized broader cleanup.
-- Do not merge standalone bookmark bar URLs into folders unless explicitly requested.
-- Do not touch mobile/synced roots unless the user specifically asks.
-- Avoid broad delete/recreate operations unless fixing a duplicated cloud-synced tree or doing an explicit restore.
-- For Chrome sync recovery, clearing and rebuilding the writable desktop roots through the bookmarks API can be safer than repeatedly editing files while Chrome is closed, because the API operation is visible to sync as user intent.
+- 用户要保留原习惯时，不移动书签栏根部独立 URL。
+- 只有分类明显错误，或用户授权更大范围整理时，才跨顶级分类移动文件夹。
+- 不要把书签栏独立 URL 合并进文件夹，除非用户明确要求。
+- 不要碰移动端或同步根节点，除非用户明确要求。
+- 除非是在修复云同步产生的重复整棵书签树，或执行明确还原任务，否则避免大范围删除/重建。
+- Chrome 同步恢复场景里，通过书签 API 清空并重建可写桌面根节点，有时比反复关闭 Chrome 后编辑文件更稳，因为 API 操作会被同步系统视为用户意图。
 
-PowerShell launch warning: profile arguments containing spaces must be passed as one quoted argument, for example `--profile-directory="Profile 1" --load-extension="<extDir>" --no-first-run --no-startup-window`. Splitting `--profile-directory=Profile 1` incorrectly can create a wrong profile such as `User Data\Profile`.
+PowerShell 启动参数提醒：包含空格的 profile 参数必须作为一个完整引号参数传入，例如 `--profile-directory="Profile 1" --load-extension="<extDir>" --no-first-run --no-startup-window`。错误拆成 `--profile-directory=Profile 1` 可能会创建错误目录，例如 `User Data\Profile`。
 
-## Raw File Fallback
+## 文件兜底
 
-Use raw `Bookmarks` JSON edits only when the browser is closed, a backup exists, and the API/import path is unavailable or unsuitable. After editing:
+只有在浏览器已关闭、已有备份，并且 API 或导入路径不可用/不适合时，才直接编辑 `Bookmarks` JSON。编辑后必须：
 
-- Recompute the Chromium bookmark checksum. Edge profiles may include `roots.workspaces_v2`; current Edge files can fail checksum if only `bookmark_bar`, `other`, and `synced` are hashed.
-- Preserve existing node shapes and fields where possible. Do not invent unnecessary fields.
-- Keep URL identity stable unless the task is a dedupe/delete task.
-- Start the browser and re-check after a sync wait, because cloud sync can revert or merge raw file changes.
+- 重新计算 Chromium 书签 checksum。Edge profile 可能包含 `roots.workspaces_v2`；如果只哈希 `bookmark_bar`、`other`、`synced`，当前 Edge 文件可能校验失败。
+- 尽量保留原有节点形状和字段，不要发明不必要字段。
+- 除非任务就是去重或删除，否则保持 URL 身份稳定。
+- 启动浏览器并等待同步窗口后复查，因为云同步可能回滚或合并直接文件修改。
 
-The fallback is useful for add-only Chrome recovery when the temporary extension cannot be registered, but it is fragile for full-tree replacement under sync.
+文件兜底适合临时扩展无法注册时的 Chrome 增量恢复，但在同步开启的完整树替换场景里很脆弱。
 
-## Verification
+## 验证标准
 
-Before reporting success, collect evidence:
+报告成功前，收集这些证据：
 
-- Current file parses as JSON.
-- Stored checksum matches the computed checksum when a checksum field exists.
-- URL identity is preserved, or all removals are explicitly listed as intended.
-- Direct bookmark bar URL sequence is unchanged when requested.
-- Top-level and key folder counts match the intended plan.
-- Duplicate URL groups are understood: distinguish intentional shortcuts from accidental duplicated trees.
-- The browser was restarted or briefly observed when sync could undo the change.
-- Temporary extension directories, callback listeners, and tabs created by this task are closed or deliberately retained with a reason.
+- 当前文件能解析为 JSON。
+- 文件存在 checksum 时，存储值和计算值一致。
+- URL 身份被保留，或所有删除项都明确列为预期删除。
+- 用户要求保留书签栏习惯时，书签栏根部 URL 顺序不变。
+- 顶级分类和关键文件夹数量符合计划。
+- 理解重复 URL 组：区分刻意保留的快捷入口和意外重复的整树/文件夹。
+- 同步可能覆盖结果时，浏览器已重启或至少短暂观察过。
+- 本任务创建的临时扩展目录、回调监听器和标签页已关闭，或带理由保留。
 
-For cloud bookmark state, there is usually no official direct JSON download. The safest check is a clean temporary profile signed into the same account with bookmark sync enabled, then inspecting/exporting that profile.
+云端书签状态通常没有官方直接 JSON 下载。最稳的检查方式是使用干净临时 profile 登录同一账号并开启书签同步，再检查或导出那个 profile。
 
-## Cleanup And Reporting
+## 清理和汇报
 
-Clean only artifacts proven to belong to the current task: temporary extension directories, local callback logs, generated candidate files, and wrongly created profiles caused by this task. Keep backups unless the user explicitly asks to remove rollback points.
+只清理能证明属于当前任务的产物：临时扩展目录、本地回调日志、生成的候选文件，以及本任务误创建的 profile。除非用户明确要求删除回滚点，否则保留备份。
 
-Do not delete native browser files such as `Bookmarks.bak`, `Bookmarks.msbak`, extension state, cookies, passwords, or sync data unless the user specifically requests that exact action and the risk is explained.
+不要删除浏览器原生文件，例如 `Bookmarks.bak`、`Bookmarks.msbak`、扩展状态、Cookie、密码或同步数据，除非用户明确要求删除精确目标，并且风险已经说明。
 
-Final reports should include: backup path, mutation method, verification counts, preserved habits, cleanup performed, backups retained, browser processes/tabs left open, and any remaining sync uncertainty.
+最终报告必须包含：备份路径、变更方式、验证数量、保留的使用习惯、执行过的清理、保留的备份、留下的浏览器进程/标签页，以及仍存在的同步不确定性。
 
-## Script
+## 脚本
 
-Use `scripts/chromium_bookmarks_audit.mjs` for deterministic read-only evidence:
+使用 `scripts/chromium_bookmarks_audit.mjs` 产生确定性的只读证据：
 
 ```bash
 node scripts/chromium_bookmarks_audit.mjs --bookmarks "<profile>/Bookmarks" --json
 node scripts/chromium_bookmarks_audit.mjs --bookmarks "<profile>/Bookmarks" --baseline "<backup>" --json
 ```
 
-The script reports root counts, direct bookmark bar URLs, duplicate URL groups, URL set diffs, and checksum status.
+脚本会报告根节点数量、书签栏根部独立 URL、重复 URL 组、URL 集合差异和 checksum 状态。

@@ -1,4 +1,4 @@
 interface:
-  display_name: "Browser Bookmarks"
-  short_description: "Safely organize and migrate browser bookmarks"
-  default_prompt: "Use $browser-bookmarks to organize, migrate, back up, or restore Edge/Chrome bookmarks safely."
+  display_name: "浏览器书签"
+  short_description: "安全整理、迁移和还原浏览器书签"
+  default_prompt: "使用 $browser-bookmarks 安全整理、迁移、备份或还原 Edge/Chrome 书签。"
