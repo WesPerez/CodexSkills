@@ -33,3 +33,6 @@
 
 !/orchestrate-long-projects/
 !/orchestrate-long-projects/**
+
+!/grok-sub2api-ops/
+!/grok-sub2api-ops/**
