@@ -1,4 +1,4 @@
 interface:
-  display_name: "浏览器书签"
-  short_description: "安全整理、迁移和还原浏览器书签"
-  default_prompt: "使用 $browser-bookmarks 安全整理、迁移、备份或还原 Edge/Chrome 书签。"
+  display_name: "浏览器书签与同步修复"
+  short_description: "安全整理、迁移、备份并修复多设备浏览器书签和云同步污染"
+  default_prompt: "使用 $browser-bookmarks 安全处理 Edge/Chrome 书签整理、迁移、同步开关和云端污染恢复。"

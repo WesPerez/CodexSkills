@@ -28,19 +28,14 @@ function usage() {
   ].join("\n");
 }
 
-function readBookmarks(file) {
-  const text = fs.readFileSync(file, "utf8");
-  return JSON.parse(text);
-}
-
 function sha256(value) {
   return crypto.createHash("sha256").update(String(value), "utf8").digest("hex");
 }
 
 function displayUrl(url) {
   const text = String(url || "");
-  if (text.length <= 180) return text;
-  return `${text.slice(0, 120)}...<len=${text.length} sha256=${sha256(text).slice(0, 16)}>`;
+  const scheme = /^([A-Za-z][A-Za-z0-9+.-]*):/.exec(text)?.[1]?.toLowerCase() || "unknown";
+  return `<url scheme=${scheme} len=${text.length} sha256=${sha256(text).slice(0, 16)}>`;
 }
 
 function canonicalUrlIdentity(value) {
@@ -199,11 +194,14 @@ function treeSignature(rootObj) {
 }
 
 function summarize(file) {
-  const rootObj = readBookmarks(file);
+  const sourceText = fs.readFileSync(file, "utf8");
+  const rootObj = JSON.parse(sourceText);
   const inventory = collect(rootObj);
   const dupes = duplicateGroups(inventory.urls);
+  const semanticTreeSignature = treeSignature(rootObj);
   return {
     file,
+    fileSha256: sha256(sourceText),
     version: rootObj.version ?? null,
     roots: inventory.rootNames,
     counts: {
@@ -215,7 +213,8 @@ function summarize(file) {
     topLevelBookmarkBar: topLevel(rootObj, "bookmark_bar"),
     directBookmarkBarUrls: directBookmarkBarUrls(rootObj),
     directBookmarkBarUrlValues: directBookmarkBarUrlValues(rootObj),
-    treeSignature: treeSignature(rootObj),
+    treeSignature: semanticTreeSignature,
+    treeSignatureSha256: sha256(semanticTreeSignature),
     checksum: checksum(rootObj),
     duplicateSamples: dupes.slice(0, 20),
     urlSet: new Set(inventory.urls.map((x) => canonicalUrlIdentity(x.url))),
