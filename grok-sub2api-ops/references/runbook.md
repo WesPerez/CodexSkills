@@ -26,7 +26,7 @@
 4. `protocol-yescaptcha` 通过 IMAP 读取验证码并调用已配置的 Turnstile provider。
 5. 检查 manifest、preprobe、精确账号状态、指定账号 postimport test 和分组 postprobe。
 
-服务器协议注册是保留方式。服务器不启动 `clients/windows/grok_register_ttk.py`；外部 Windows 客户端是另一条独立路径。
+服务器协议注册是保留方式。默认服务器不启动 `clients/windows/grok_register_ttk.py`；外部 Windows 客户端是另一条独立路径。用户明确授权 Linux/Xvfb 服务器模拟客户端时，按下节的隔离门禁执行，且不得与服务器协议批次并发。
 
 ## 外部 Windows 客户端
 
@@ -37,6 +37,15 @@
 5. device OAuth 超时可复用 SSO 走协议 OAuth，不重新注册同一账号。
 
 `cpa_*`、`cpa_auths/`、`cpa_pending/` 和 `cpa_cooldown/` 是兼容名称。业务文档和报告使用“Sub2API auth”。
+
+## Linux/Xvfb 服务器模拟客户端
+
+1. 只使用当前仓库 `scripts/run_linux_client_full.py` 和 `clients/windows/grok_register_ttk.py`，不恢复历史 `/tmp` one-shot runner。
+2. 核对 `Xvfb :99`、Edge、客户端 venv、bridge、代理池和无其他注册批次。
+3. 先备份 Sub2API 数据库，运行 1 route/1 success canary。
+4. canary 必须返回本批本地 auth、bridge `action=created`、`probe=passed` 和精确账号 ID；只看数据库增长无效。
+5. 两路批量必须为两个隔离 route、两个代理 ref、每路单浏览器。后台启动记录 systemd unit、PID、run manifest 和日志路径。
+6. 402/429 仍计为可用额度状态；permission、网络和 5xx 保留在 route pending，不删除。
 
 ## OAuth 恢复
 

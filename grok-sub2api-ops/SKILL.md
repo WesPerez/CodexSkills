@@ -1,6 +1,6 @@
 ---
 name: grok-sub2api-ops
-description: 在 grok-build-auth 项目中通过服务器协议或外部 Windows/Edge 客户端注册 Grok 账号，铸造或恢复 OAuth，验证并通过 hardened bridge 推送 Sub2API auth，对账 Grok 分组、402/429 额度、refresh revoked、permission-denied、未绑定分组、auth 文件与代理池。用户提到服务器协议注册、Windows Grok 注册、Edge CDP、OIDC mint、Sub2API auth push、兼容 cpa_* 配置、bridge 422/error_code、批量账号可用性、remint、导入、清理或完整 Grok 链路时使用。
+description: 在 grok-build-auth 项目中通过服务器协议、外部 Windows/Edge 客户端或明确授权的 Linux/Xvfb 服务器模拟客户端注册 Grok 账号，铸造或恢复 OAuth，验证并通过 hardened bridge 推送 Sub2API auth，对账 Grok 分组、402/429 额度、refresh revoked、permission-denied、未绑定分组、auth 文件与代理池。用户提到服务器协议注册、Windows Grok 注册、服务器模拟客户端、Linux Edge/Xvfb、Edge CDP、OIDC mint、Sub2API auth push、兼容 cpa_* 配置、bridge 422/error_code、批量账号可用性、remint、导入、清理或完整 Grok 链路时使用。
 ---
 
 # Grok Sub2API Operations
@@ -24,11 +24,12 @@ scripts/windows_client_preflight.py
 
 - `server-full`：服务器协议注册，运行 `scripts/register_and_import.py`。这是独立可选方式，不是废弃流程。
 - `client-full`：外部 Windows/受控 Edge 注册，运行 `clients/windows/grok_register_ttk.py` 并经 bridge 推送。
+- `server-client-full`：用户明确授权时，在部署服务器通过 Linux Edge + Xvfb 运行同一客户端，并使用 `scripts/run_linux_client_full.py` 建立隔离 route、代理和私有产物目录。
 - `export-only`：账号已在用户 Edge 登录，运行本技能 `scripts/export_logged_in.py`。
 - `push-only`：已有完整 `xai-*.json`，运行本技能 `scripts/push_auth.py` 幂等重推。
 - `audit-recover`：逐账号指定测试，区分正常、额度耗尽、revoked、权限错误和瞬时故障，再决定恢复或清理。
 
-服务器不运行 Windows 客户端注册程序。服务器协议和外部 Windows 客户端是并列路径；只有旧的“先 quarantine 写库、再探针筛选”流程废弃。
+默认不在服务器混跑协议批次和浏览器客户端。只有用户明确要求服务器模拟客户端，且历史或 canary 已证明 Edge/Xvfb、客户端 venv、代理和 bridge 可用时，才选择 `server-client-full`；运行期间不得并发启动 `register_and_import.py`。只有旧的“先 quarantine 写库、再探针筛选”流程废弃。
 
 ## 配置发现与写入门禁
 
@@ -71,6 +72,25 @@ python grok_register_ttk.py
 客户端必须在正式 auth 写盘和 push 前调用 Grok CLI `/v1/responses`，校验 completed 且只从 assistant output 提取随机 nonce。required 门禁不得被 enabled=false 绕过。只有 pass 才进入正式目录并 push；网络、5xx、permission propagation 进入 pending；402/429 进入 cooldown；明确 revoked 才进入 remint 或删除候选。
 
 bridge 是最终信任边界：写库前 preprobe；写库后指定账号 test。postimport 失败时必须核对 `imported`、`action`、账号 ID 和数据库状态，不能把所有 422 都描述成零写入。
+
+## Linux/Xvfb 服务器模拟客户端
+
+该模式复用正式客户端，不运行历史 `/tmp` runner、patch 或反编译产物。执行前确认：
+
+1. 用户明确授权服务器模拟客户端和生产写入。
+2. `Xvfb :99`、Microsoft Edge、`clients/windows/.venv`、bridge 和至少两个独立代理出口健康。
+3. 没有 `register_and_import.py` 或其他 Grok 注册批次运行。
+4. 先建立数据库恢复点，再用 1 route、1 success canary 验证 `action=created + probe=passed`。
+5. 两路批量使用两个独立进程、两个代理 ref、两个私有 route 目录；每路单浏览器，并按本地 auth、bridge `action=created` 和精确账号 ID 对账。
+
+正式入口：
+
+```bash
+DISPLAY=:99 python3 scripts/run_linux_client_full.py \
+  --target 1 --routes 1 --attempts-per-route 20 --proxy-ref <healthy-ref>
+```
+
+canary 通过后再用 `systemd-run --collect` 启动两路后台批次。`--target` 是新增且通过完整门禁的账号数；不要用数据库 ID 增量或全池数量代替本批归因。服务器内存不足、浏览器反复断连或代理出口重复时停止扩并发，保持最多两路。
 
 ## 账号判读
 
