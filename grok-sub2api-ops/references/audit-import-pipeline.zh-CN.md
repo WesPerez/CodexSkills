@@ -82,6 +82,31 @@ BRIDGE_PORT
 4. 成功后核对唯一 Grok 分组、schedulable、官方 base URL 和指定账号 test。
 5. auth 已入库不等于文件可立即删除；先记录 auth hash 到账号 ID 的映射和恢复点。
 
+## 批次目录与保留策略
+
+所有 Grok 批次统一使用项目内 `private/runs/<batch-id>/`。已有 auth 导入也必须创建批次目录，不把 checkpoint、结果、auth 备份或数据库 dump 留在 `/root`、输入目录或通用 `/root/backups`。
+
+```text
+private/runs/<batch-id>/
+├── manifest.json
+├── import/
+│   ├── checkpoint.json
+│   └── result.json
+├── auth/                 # 仅未完成或待恢复 auth，成功后移除
+└── backup/               # 仅本批恢复窗口内保留
+```
+
+`manifest.json` 是长期索引，只保留最终正常或 402/429 可用账号的最小必要信息：脱敏身份、Sub2API 账号 ID、source/auth hash、bridge action、preprobe/postimport 分类、Grok 分组、调度状态和官方 base URL 验证。不要保存 token、SSO、密码、管理密钥或完整上游响应。失败账号只保留聚合数量和无秘密错误分类；需要继续恢复的精确 auth 暂存 `auth/`，该批次不能标记完成。
+
+成功账号在 Sub2API 接管 refresh 链后，本地 auth 不再是权威。只有同时满足以下条件才清理源文件：
+
+1. manifest 已原子写入 source hash 到账号 ID 的映射。
+2. bridge 返回成功，最终活动账号唯一存在。
+3. 指定账号 test 为正常或 402/429 可用，分组、schedulable 和 base URL 均正确。
+4. 清理目标是 manifest 列出的精确文件，且确认是交接副本而非唯一恢复材料。
+
+满足条件后删除成功源文件、重复 auth 副本和本任务创建的空目录；保留未完成、瞬时错误、permission、revoked 待恢复和归属不明文件。批次数据库恢复点放 `backup/`，在最终验证前不得删除；验证后按用户保留策略删除时，在 manifest 记录原路径、hash 和删除时间。
+
 ## 清理流程
 
 清理分三类独立授权：Sub2API 账号、服务器/客户端 auth 文件、Mailu 邮箱。

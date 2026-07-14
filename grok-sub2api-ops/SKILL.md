@@ -5,7 +5,35 @@ description: 在 grok-build-auth 项目中通过服务器协议、外部 Windows
 
 # Grok Sub2API Operations
 
-以“Sub2API 中新增、恢复或确认一个真实可用的 Grok OAuth 账号”为完成标准。Web 注册、SSO、本地 auth、HTTP 2xx、数据库 active 或 schedulable 标记都不能单独证明完成。402/429 额度耗尽仍算可用账号，应保留并等待额度窗口。
+以“本批 auth 已完成 refresh/可用性判定、精确去重、导入和逐账号 postimport test”为完成标准。Web 注册、SSO、本地 auth、HTTP 2xx、数据库 active 或 schedulable 标记都不能单独证明完成。402/429 额度耗尽仍算可用账号，应保留并等待额度窗口。
+
+## 已有 Auth 批量导入快路径
+
+用户说“把这个目录/这批账号导入 Sub2API”且输入是 `xai-*.json` 时，只处理这一批，不展开注册、浏览器或 K12 流程：
+
+1. 读取目录或清单，校验 `type/auth_kind/email/sub/access_token/refresh_token/base_url`，统计数量和文件权限；不要逐文件输出敏感字段。
+2. 先按 bridge 的稳定账号名、email 和 subject 精确查询本批在 Sub2API 中是否存在。这一步应是小范围查找，不做全库宽泛扫描。将候选分为新账号和已存在账号，避免本地旧 refresh token 与 Sub2API 已轮换的刷新链竞争。
+3. 判断 OAuth 可用性：
+   - 新账号：access token 过期本身不是坏号。使用正式 `cpa` refresh helper 交换 refresh token，成功后原子写回当前 auth，再对 Grok CLI `/responses` 做一次真实探针。
+   - 已存在账号：先对库中精确 `account_id` 做一次指定账号 test；正常或 402/429 时直接保留并跳过本地 refresh。只有库中账号失效且需要恢复时，才比较 subject、token 时间和 refresh 所有权，经 bridge 更新。
+   - 只有 `invalid_grant`、refresh revoked 或明确身份不匹配才判无效；网络、5xx 和 permission propagation 记为不确定；402/429 记为可用但额度受限。
+4. 将候选归类为 `create`、`keep-existing`、`update`、`stale-auth` 和 `identity-mismatch`。不要把 access 过期当作停止条件。
+5. 写入前只建立一次批次数据库恢复点。通过 hardened bridge 导入 `create/update` 候选；bridge 负责写前 preprobe、精确 create/update、Grok 分组与调度收口。
+6. 对 bridge 返回的每个本批 `account_id` 执行一次指定账号 postimport test，并核对只绑定 Grok 分组、`schedulable=true`、官方 CLI base URL。bridge 已完成且返回结构化 postimport test 证据时不要重复测试。
+7. 汇总本批：输入数、refresh 成功/失败、probe 分类、已存在数、保留数、新建数、更新数、stale 拒绝数、账号 ID、逐账号 test 结果和最终可用数。
+
+快路径只读取 [audit-import-pipeline.zh-CN.md](references/audit-import-pipeline.zh-CN.md) 和所调用正式脚本的相关段落。只有出现 422、429、revoked、代理或 bridge 故障时再读取 [runbook.md](references/runbook.md)。不要为已有 auth 批量导入通读注册手册，也不要调用 K12/OpenAI bundle 工具。
+
+## 批次归档与源文件收口
+
+所有 Grok 注册、已有 auth 导入、恢复和对账批次统一写入项目的 `private/runs/<batch-id>/`，不要把 checkpoint、auth 副本或临时数据库恢复点散落在 `/root`、输入目录或通用 `/root/backups`：
+
+- `manifest.json`：长期批次索引。只为最终 `usable` 或 `usable_exhausted` 账号保存脱敏身份、账号 ID、source/auth hash、`created/updated/kept`、探针分类、分组和调度验证；失败项只保存数量和无秘密的分类摘要。
+- `import/checkpoint.json`、`import/result.json`：保存可恢复的批次进度、bridge action、账号 ID 和逐账号验证结果，不保存 token、管理密钥或完整上游响应。
+- `backup/`：仅在写入、回滚或重试窗口内保存本批数据库恢复点。最终验证完成后按用户的备份保留策略保留或删除，并在 manifest 记录路径、hash、状态和删除时间。
+- `auth/`：只临时保存尚未交接或仍需恢复的精确 auth。Sub2API 成功接管 refresh 链、最终账号验证通过且 manifest 已原子落盘后，删除 manifest 明确列出的成功源文件和重复 auth 副本；不得使用目录通配或模糊名称清理。未完成、瞬时失败、permission、revoked 待恢复和归属不明的 auth 必须保留并标记状态。
+
+完成批次前确认长期记录只包含仍可用账号，批次目录权限为 `0700`、文件为 `0600`，并清理本任务创建且已证明不再需要的空目录。`/root/backups` 只用于另有明确主机级保留策略的长期备份，不是 Grok 批次的默认落点。
 
 ## 定位与读取
 
@@ -18,7 +46,7 @@ clients/windows/grok_register_ttk.py
 scripts/windows_client_preflight.py
 ```
 
-先读取仓库 `OPERATIONS.zh-CN.md`。Windows、CDP、422、429 或 revoked 读取 [runbook.md](references/runbook.md)；批量对账、导入、分组和清理读取 [audit-import-pipeline.zh-CN.md](references/audit-import-pipeline.zh-CN.md)。只使用正式入口，不运行历史 patch、debug 或 one-shot 脚本。
+新注册、浏览器、服务器协议或 OAuth 恢复任务读取仓库 `OPERATIONS.zh-CN.md` 的相关章节，不默认通读全文。Windows、CDP、422、429 或 revoked 读取 [runbook.md](references/runbook.md)；批量对账、导入、分组和清理读取 [audit-import-pipeline.zh-CN.md](references/audit-import-pipeline.zh-CN.md)。只使用正式入口，不运行历史 patch、debug 或 one-shot 脚本。
 
 ## 选择模式
 
@@ -26,7 +54,8 @@ scripts/windows_client_preflight.py
 - `client-full`：外部 Windows/受控 Edge 注册，运行 `clients/windows/grok_register_ttk.py` 并经 bridge 推送。
 - `server-client-full`：用户明确授权时，在部署服务器通过 Linux Edge + Xvfb 运行同一客户端，并使用 `scripts/run_linux_client_full.py` 建立隔离 route、代理和私有产物目录。
 - `export-only`：账号已在用户 Edge 登录，运行本技能 `scripts/export_logged_in.py`。
-- `push-only`：已有完整 `xai-*.json`，运行本技能 `scripts/push_auth.py` 幂等重推。
+- `push-only`：已有完整且 access 未过期的 `xai-*.json`，运行本技能 `scripts/push_auth.py` 幂等重推。
+- `batch-import`：已有一批 `xai-*.json`，按“已有 Auth 批量导入快路径”统一 refresh、探针、查重、备份、导入和逐账号验证。
 - `audit-recover`：逐账号指定测试，区分正常、额度耗尽、revoked、权限错误和瞬时故障，再决定恢复或清理。
 
 默认不在服务器混跑协议批次和浏览器客户端。只有用户明确要求服务器模拟客户端，且历史或 canary 已证明 Edge/Xvfb、客户端 venv、代理和 bridge 可用时，才选择 `server-client-full`；运行期间不得并发启动 `register_and_import.py`。只有旧的“先 quarantine 写库、再探针筛选”流程废弃。
@@ -94,6 +123,7 @@ canary 通过后再用 `systemd-run --collect` 启动两路后台批次。`--tar
 
 ## 账号判读
 
+- access token 过期：先 refresh；refresh 成功并通过真实探针即为可用，不能仅因 access 过期拒绝导入。
 - 指定账号 test completed：保留并调度。
 - 402/429 明确额度耗尽：保留，按 reset/cooldown 暂停或等待；仍算可用。
 - `invalid_grant` / refresh revoked：有密码、SSO 或邮箱恢复能力时 remint 并更新原账号；否则列为逐 ID 清理候选。
