@@ -23,7 +23,7 @@ from urllib.parse import urlsplit, urlunsplit
 PLAN_VERSION = 6
 MAX_ACCOUNT_NAME_LENGTH = 100
 MANAGED_PREFIX_RE = re.compile(
-    r"^(?:\[@url:[^\]\r\n]{1,64}\]\s+|!S2:\d{5}:\d{2}:[0-9a-f]{10}\s+|![0-9A-Z]{2}-?)"
+    r"^(?:\[@url:[^\]\r\n]{1,64}\]\s+|!S2:\d{5}:\d{2}:[0-9a-f]{10}\s+|![0-9A-Z]{2}-)"
 )
 BASE36_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 

@@ -164,6 +164,16 @@ class PlannerTests(unittest.TestCase):
         self.assertEqual(plan["changes"], [])
         self.assertEqual(plan["verification_rows"][0]["base_name"], "any-6945")
 
+    def test_natural_bang_prefix_is_preserved(self) -> None:
+        plan = planner.build_plan(
+            [account(45, "!ZZ special", base_url="https://natural-prefix.example/v1")],
+            {},
+            order_markers=["special"],
+        )
+        change = plan["changes"][0]
+        self.assertEqual(change["base_name"], "!ZZ special")
+        self.assertEqual(change["new_name"], "!00-!ZZ special")
+
     def test_repeated_plan_is_idempotent(self) -> None:
         rows = [account(40, "first", base_url="https://same.example/v1")]
         first = planner.build_plan(rows, {})
