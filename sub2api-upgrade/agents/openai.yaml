@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sub2API 安全升级"
+  short_description: "将 Sub2API 升级置于测试、回滚与清理门禁下"
+  default_prompt: "使用 $sub2api-upgrade 将 Sub2API 安全升级到通过验证的最新版本并完成收口。"

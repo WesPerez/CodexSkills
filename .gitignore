@@ -36,3 +36,6 @@
 
 !/grok-sub2api-ops/
 !/grok-sub2api-ops/**
+
+!/sub2api-upgrade/
+!/sub2api-upgrade/**
