@@ -1,4 +1,4 @@
 interface:
   display_name: "视频操作研究"
-  short_description: "从视频取证到安全执行，分流命令行代理、人工批次与全托管界面操作"
-  default_prompt: "使用 $video-operation-research 分析并复刻这个视频流程，先完成可代理步骤，再汇总人工操作或提供全托管选项。"
+  short_description: "从视频取证到全自动代理执行，自动处理访问降级、界面操作与结果验证"
+  default_prompt: "使用 $video-operation-research 全自动分析并复刻这个视频流程；遇到访问挑战时自动换用公开源或替代证据，不把操作转交用户。"
