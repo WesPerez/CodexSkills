@@ -123,6 +123,47 @@ class PlannerTests(unittest.TestCase):
         self.assertLess(by_id[34]["new_name"], by_id[35]["new_name"])
         self.assertNotIn(37, by_id)
 
+    def test_grok_uses_short_fixed_tail_prefix(self) -> None:
+        rows = [
+            account(371, "xai-first@example.com", platform="grok", account_type="oauth"),
+            account(
+                372,
+                "[@url:grok-cli-oauth-default:b11f31e86e] zzzz-xai-second@example.com",
+                platform="grok",
+                account_type="oauth",
+            ),
+            account(373, "ordinary", base_url="https://relay.example/v1"),
+        ]
+        plan = planner.build_plan(rows, {})
+        by_id = {row["id"]: row for row in plan["verification_rows"]}
+        self.assertEqual(by_id[371]["new_name"], "zzzz-xai-first@example.com")
+        self.assertEqual(by_id[372]["new_name"], "zzzz-xai-second@example.com")
+        self.assertEqual(by_id[372]["base_name"], "xai-second@example.com")
+        self.assertEqual(by_id[371]["fixed_prefix"], "zzzz-")
+        self.assertGreater(by_id[371]["new_name"], by_id[373]["new_name"])
+        self.assertEqual(plan["groups"][-1]["account_ids"], [371, 372])
+
+    def test_grok_fixed_prefix_is_idempotent_and_ignores_marker_prefixes(self) -> None:
+        rows = [
+            account(
+                374,
+                "zzzz-xai-account@example.com",
+                platform="grok",
+                account_type="oauth",
+            )
+        ]
+        plan = planner.build_plan(rows, {}, order_markers=["xai"])
+        self.assertEqual(plan["changed_count"], 0)
+        self.assertEqual(plan["verification_rows"][0]["base_name"], "xai-account@example.com")
+        self.assertEqual(plan["verification_rows"][0]["new_name"], "zzzz-xai-account@example.com")
+
+    def test_non_grok_natural_zzzz_prefix_is_preserved(self) -> None:
+        plan = planner.build_plan(
+            [account(375, "zzzz-natural", base_url="https://natural.example/v1")],
+            {},
+        )
+        self.assertEqual(plan["verification_rows"][0]["base_name"], "zzzz-natural")
+
     def test_compact_prefix_removes_legacy_prefix_without_changing_base_name(self) -> None:
         legacy = "!S2:00001:01:1234567890 original-name"
         plan = planner.build_plan(

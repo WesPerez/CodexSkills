@@ -26,6 +26,7 @@ MANAGED_PREFIX_RE = re.compile(
     r"^(?:\[@url:[^\]\r\n]{1,64}\]\s+|!S2:\d{5}:\d{2}:[0-9a-f]{10}\s+|![0-9A-Z]{2}-)"
 )
 BASE36_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+PLATFORM_FIXED_PREFIXES = {"grok": "zzzz-"}
 
 
 class PlanError(ValueError):
@@ -212,8 +213,12 @@ def effective_endpoint(
     return default_endpoint_key(platform, account_type)
 
 
-def strip_managed_prefix(name: str) -> str:
-    return MANAGED_PREFIX_RE.sub("", name, count=1)
+def strip_managed_prefix(name: str, platform: str = "") -> str:
+    base_name = MANAGED_PREFIX_RE.sub("", name, count=1)
+    fixed_prefix = PLATFORM_FIXED_PREFIXES.get(platform.casefold())
+    if fixed_prefix and base_name.startswith(fixed_prefix):
+        return base_name[len(fixed_prefix):]
+    return base_name
 
 
 def account_guard(account: dict[str, Any]) -> str:
@@ -354,6 +359,7 @@ def build_plan(
             continue
         endpoint_key, label = effective_endpoint(account, by_id, overrides)
         digest = hashlib.sha256(endpoint_key.encode("utf-8")).hexdigest()
+        fixed_prefix = PLATFORM_FIXED_PREFIXES.get(platform)
         group = groups.setdefault(
             digest,
             {
@@ -364,11 +370,16 @@ def build_plan(
                 "matched_markers": set(),
                 "bucket_ranks": set(),
                 "matched_name_buckets": set(),
+                "fixed_prefix": fixed_prefix,
             },
         )
+        if group["fixed_prefix"] != fixed_prefix:
+            raise PlanError(
+                f"route group {label!r} mixes incompatible platform prefix policies"
+            )
         group["account_ids"].append(aid)
         old_name = account["name"]
-        base_name = strip_managed_prefix(old_name)
+        base_name = strip_managed_prefix(old_name, platform)
         if not base_name.strip():
             raise PlanError(f"account {aid} has no base name after removing the managed prefix")
         item_marker_rank, item_matches = marker_rank(base_name, markers)
@@ -386,6 +397,7 @@ def build_plan(
                 "group_key_sha256": digest,
                 "group_label": label,
                 "classification_source": "manual" if endpoint_key.startswith("manual:") else "runtime",
+                "fixed_prefix": fixed_prefix,
                 "marker_rank": item_marker_rank,
                 "matched_markers": item_matches,
                 "name_bucket_rank": item_bucket_rank,
@@ -396,6 +408,8 @@ def build_plan(
     ordered_groups = sorted(
         groups.values(),
         key=lambda item: (
+            item["fixed_prefix"] is not None,
+            item["fixed_prefix"] or "",
             min(item["bucket_ranks"], default=len(buckets)),
             min(item["marker_ranks"], default=len(markers)),
             item["label"].casefold(),
@@ -437,7 +451,9 @@ def build_plan(
         account = candidate.pop("account")
         digest = candidate["group_key_sha256"]
         base_name = candidate["base_name"]
-        if markers:
+        if candidate["fixed_prefix"]:
+            prefix = candidate["fixed_prefix"]
+        elif markers:
             combined_item_order = (
                 candidate["name_bucket_rank"] * (len(markers) + 1)
                 + candidate["marker_rank"]
@@ -473,6 +489,7 @@ def build_plan(
                 "name_bucket_rank": candidate["name_bucket_rank"],
                 "matched_name_buckets": candidate["matched_name_buckets"],
                 "classification_source": candidate["classification_source"],
+                "fixed_prefix": candidate["fixed_prefix"],
                 "guard_sha256": account_guard(account),
                 "truncated": truncated,
             }
@@ -502,6 +519,7 @@ def build_plan(
         "excluded_platforms": excluded_platforms,
         "order_markers": markers,
         "name_buckets": buckets,
+        "platform_fixed_prefixes": dict(sorted(PLATFORM_FIXED_PREFIXES.items())),
         "changed_count": len(changes),
         "group_count": len(group_list),
         "ignored_deleted_ids": sorted(ignored_deleted),

@@ -62,6 +62,8 @@
 5. Grok OAuth：运行时固定 CLI gateway，忽略存储 URL。
 6. 其他账号：使用非空 `credentials.base_url`；为空时按 `platform/type/default`。
 
+名称策略另有一条平台固定规则：未被 `--exclude-platform grok` 排除的 Grok 账号统一使用 `zzzz-`，不再使用长 URL 前缀或紧凑标记前缀。规划时先剥离旧管理前缀或已有单个 `zzzz-`，因此重复运行保持幂等；非 Grok 的自然 `zzzz-` 原名不受影响。
+
 URL 比较会规范化 scheme/host、默认端口和尾部斜杠，并按 scheme/host/port/path 归类。query、userinfo 与 fragment 均忽略：它们经常含 token 或部署参数，不应把同一中继拆成多个显示类别。完整 URL 不进入 plan，只保留 SHA256。不要用代理 URL 代替上游 URL。
 
 指定名称标记顺序时：
@@ -91,6 +93,7 @@ URL 比较会规范化 scheme/host、默认端口和尾部斜杠，并按 scheme
 - 是否存在过长名称截断；完整原名仍能从计划恢复。
 - 变更数是否与用户指定范围一致。
 - 管理页面需要使用 `name asc`；如果本地保存的是 `id` 排序，名称前缀不会改变 ID 排序结果。
+- Grok 计划应全部以单个 `zzzz-` 开头，并确认没有其他未删除账号在数据库实际排序规则下排在 Grok 之后。
 - 活跃影子账号若引用已软删除或列表中缺失的母账号，必须停止；不得读取或恢复软删除母账号来强行完成整理。
 
 ## 6. 生产应用
