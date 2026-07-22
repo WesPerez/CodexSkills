@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sub2API K12 Space Audit"
+  short_description: "只读审计 Sub2API 本地 K12 Space 可用账号统计"
+  default_prompt: "使用 $sub2api-k12-space-audit 汇总本地数据库中的 K12 Space 与可调度账号数量。"

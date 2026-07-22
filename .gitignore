@@ -42,3 +42,6 @@
 
 !/sub2api-account-organizer/
 !/sub2api-account-organizer/**
+
+!/sub2api-k12-space-audit/
+!/sub2api-k12-space-audit/**
