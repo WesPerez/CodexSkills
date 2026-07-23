@@ -22,4 +22,4 @@
 
 不读取、打印或复制 `.env` 中的密码、JWT、TOTP key、管理 key 或账号凭据。升级 run 可以把 `.env` 的权限受限快照与数据库 dump 一同保留作回滚证据，但不能在聊天、日志或参考文件中输出其内容。
 
-旧分支镜像 workflow 对 `debug`、`mine` 各跑一轮完整 CI/build，近期每轮约 11–12 分钟，其中 unit/integration 约 8–8.5 分钟，镜像约 3.5–4 分钟。优化后只由 debug 构建：verify 与 cache-only build 并行，verify-gated publish 更新 trusted cache，mine 用 exact digest promotion；真实冷/热 run 数据需在 workflow 上线后重新记录。生产 dump 与应用切换近期约 17–21 秒，不能通过跳过验证转移风险。
+旧分支镜像 workflow 对 `debug`、`mine` 各跑一轮完整 CI/build，近期成功 run 每轮约 11 分 36 秒到 12 分 24 秒。优化后的首次真实 debug run `29999790284` attempt 1 墙钟 8 分 56 秒：unit/integration 8 分 13 秒、并行 cache-only Docker build 4 分 07 秒、verify-gated publish 33 秒；同 SHA attempt 2 热跑墙钟 8 分 24 秒，Docker build 14 秒、publish recovery 29 秒、unit/integration 7 分 46 秒。当前长尾已明确是不可跳过的 Go 测试，而不是 Docker；mine 改用 exact digest promotion 后不再重复整轮 CI/build。上述是一次冷/热样本，不作为固定 SLA。生产 dump 与应用切换近期约 17–21 秒，不能通过跳过验证转移风险。
