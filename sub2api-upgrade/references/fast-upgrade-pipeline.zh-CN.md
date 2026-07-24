@@ -11,7 +11,7 @@
 
 优化后的正常小版本升级以减少一轮 mine 构建、人工逐例和 fixture 重建为目标。2026-07-23 第一阶段真实 run `29999790284` 已验证：冷跑 8 分 56 秒、同 SHA 热跑 8 分 24 秒，旧成功 run 为 11 分 36 秒到 12 分 24 秒；cache-only Docker build 从 4 分 07 秒降到 14 秒，且始终与 CI 并行，publish 为 33/29 秒。最终候选 run `30001779447` 再把原命令不变的 unit 与 integration 拆成两个必过并行 job，push 到 workflow 完成约 6 分 31 秒；unit/integration job 分别为 5 分 19 秒和 4 分 06 秒，首次 publish 55 秒。当前关键路径是约 5 分钟的 unit，而不是 Docker 或 integration；这些只是少量样本，不承诺固定分钟数。时间目标只能由阶段打点更新，不能作为绕过门禁的 SLA。迁移、上游大改或真实回归必须以正确性为先。
 
-2026-07-24 的 `0.1.164` 发布按实际 diff 与生产活跃能力选择 34/44 个 case，最终 34/34 通过；未启用或未触发的 10 例留在 catalog 而不执行。exact digest promotion 用 31 秒，生产阶段含约 47 MB dump 与应用切换约 45 秒。该结果证明提速点是精确选例、同 SHA promotion 和保留 debug 骨架，不是把全 catalog 改成另一个固定 case 数。
+2026-07-24 的 `0.1.164`（现生产 `61d5b363fe7cd370f73517973aec361303afb77f`；上一生产 `13b41759...`）按 diff 与 active inventory 选 34/44 且 34/34 通过。**必要耗时**约 CI 6.2m + promotion 31s + production 45s（约 47 MB dump）。同期浪费来自四候选重复 plan、默认 44 全开、空日志误判、release fault injection/临时 SQL 污染、无 debug 身份硬跑约 25 blocked、以及 5 次 matrix/约 31 份 manual evidence；planner/空日志修复与按 diff 34/44 已落地。提速点是一次成型、精确选例、同 SHA promotion、计划阶段窄化闭环和 apply 后立即 confirm，不是把 catalog 固化成另一个固定 case 数。
 
 ## 证据生命周期
 
@@ -84,7 +84,9 @@
 - **开发循环**：`R0 + 当前失败/受影响 case + 日志窗`，缩短定位周期。
 - **发布门禁**：最终 SHA 的 `R0 + U/M diff 精确触发 case + 生产活跃能力 canary + 职责兜底 + 回滚演练 + 日志窗`。未启用能力留在 catalog，不为凑全场景执行。
 
-生产活跃 provider 没有 debug-only 身份时，不复制生产凭据。切换前使用精确 SHA CI、同 SHA 合成协议/runtime、生产只读 inventory、切换前基线和 image rollback 证明；切换后对每个活跃 provider 各做一次受控 canary。此闭环不适用于 migration/schema、认证写入或无法 image-only rollback 的变更。
+**计划阶段身份闸门**：fixture 无 account 对象或活跃 provider 无 debug-only 身份时，在 plan 后立即进入合规窄化闭环，不先制造大量 blocked，也不复制生产凭据。闭环=精确 SHA CI + 同 SHA 合成协议/runtime + 生产只读 inventory/基线 + image rollback 证明 + 切换后每个活跃 provider 一次官方 Codex 有意义 canary（可复用同窗合规 evidence）。不适用于 migration/schema、认证写入或无法 image-only rollback 的变更。
+
+**release 隔离**：`mode=release` 禁止 fault injection、临时 SQL 改库、Sub2API Test Connection。上述手段只允许独立 `mode=dev` 实验 run，其 attempt/日志/fixture 变更不得进入 seal、promotion 或生产 evidence。R0-1/R0-2 无业务日志不构成失败；R0-7 仍要求非空且归属明确的日志窗。生产 post-confirm 可把确实为空且无 fatal 的窗记录为 clean empty window，但不能拿它替代 debug R0-7。
 
 使用 `run-debug-matrix.sh` 管理 attempt：失败或 blocked 后只有显式 `--new-attempt` 才能复测；running attempt 只能续接。release mode 的 passed case 必须带证据，R0-7/log executor 必须带日志窗，skip 必须说明原因。任何 commit 变化都必须重跑发布门禁。最终只接受 `seal` 生成且经 `verify-release-evidence.sh` 复核的 `release-evidence.json`。
 
@@ -100,7 +102,7 @@
 
 最终 debug 矩阵 sealed 后，`Promote Debug Image` 从 exact `debug-sha-<40>@digest` carbon-copy `mine-sha-<40>`、`mine-<12>`、`mine`，不重建、不改 labels。source/target digest 必须相同，所以 `ref.name=debug` 是正确的内容身份；mine 发布资格来自 source run artifact、promotion receipt 和 sealed evidence hash。生产 apply 必须重新读取本地 evidence 文件，不能只信 receipt 中的字符串。
 
-新生产 run 通过后先保持 `passed_pending_finalization` 和 rollback image tag。立即完成 debug stop、证据落盘和实时复核，但不要用 `--min-age-minutes 0` 绕过稳定窗口；达到既定最小年龄后再按 `finalize-sub2api-upgrade.sh --list`、目标 run dry-run、`--apply` 的顺序释放 rollback tag。数据库 dump、配置快照和至少两个 recovery run 始终保留。
+新生产 apply 后**立即** `confirm-production-upgrade.sh`：传入每个 active provider 的官方 Codex 有意义 canary evidence（复用已有合规结果，非必要不重发），校验 provider 覆盖、日志窗、revision/digest/dump 与健康基线；通过后可 `--stop-debug`（只 stop 容器）。run 保持 `passed_pending_finalization` 与 rollback tag。默认 **24h**（`--min-age-minutes 1440`）后：`finalize-sub2api-upgrade.sh --list` → 目标 dry-run → `--apply`（要求 post-confirm passed）。后续成功版本上线后，对被当前生产 revision 取代的旧 pending run 用 `--retire-superseded [--min-age-hours 24] [--apply]`。禁止 `--min-age-minutes 0`。dump、配置快照和至少两个 recovery run 始终保留。
 
 不可变 `debug-sha-<40>` 已存在时绝不覆盖。只有 BuildKit SLSA provenance、OCI index、attestation manifest 和 in-toto statement 的 subject/predicate/blob digest 共同证明内容来自本仓库 `Docker Branch Images` 的 debug/publish job、同一完整 SHA，才允许补发 metadata；这是结构化内容绑定，不宣称独立的 Sigstore 签名验证。artifact 同时记录原 publisher run 与本次成功验证 run，labels 单独不构成恢复依据。
 

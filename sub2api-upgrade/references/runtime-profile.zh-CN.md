@@ -1,6 +1,6 @@
 # Sub2API 运行时档案
 
-此档案记录 2026-07-23 已核验的默认部署。每次升级必须重新检查，尤其是文档与实际配置发生冲突时以实时运行态为准。
+此档案记录 2026-07-24 已核验的默认部署（生产 `0.1.164` / `61d5b363fe7cd370f73517973aec361303afb77f`；上一生产 `13b41759f68a85d86c38fba4dad12f13b4792682`）。每次升级必须重新检查，尤其是文档与实际配置发生冲突时以实时运行态为准。
 
 | 项目 | 已知基线 | 升级控制 |
 | --- | --- | --- |
@@ -26,4 +26,6 @@
 
 最终候选 run `30001779447` 把原命令不变的 unit 与 integration 拆为两个必过并行 job，push 到 workflow 完成约 6 分 31 秒：unit job 5 分 19 秒（测试 step 5 分 11 秒）、integration job 4 分 06 秒（测试 step 3 分 56 秒）、cache-only build job 34 秒（build step 11 秒）、首次 publish 55 秒。integration 比串行 step 更慢，这与失去同 runner 的 unit 编译热身以及跨 run 冷启动、网络和 Testcontainers 波动一致，但仍被 unit 关键路径覆盖；总墙钟较第一阶段冷跑再省约 2 分 25 秒。当前长尾是不可跳过的 unit 测试；mine 改用 exact digest promotion 后不再重复整轮 CI/build。以上均为少量样本，不是固定 SLA，且并行会略增 runner 分钟。生产 dump 与应用切换近期约 17–21 秒，不能通过跳过验证转移风险。
 
-2026-07-24 的 `0.1.164` 实际发布进一步验证了按 diff 收敛：候选 `61d5b363fe7cd370f73517973aec361303afb77f` 的 planner 从 catalog 44 例中选择 34 例，按未启用能力或未触发路径跳过 10 例；最终 34/34 通过。debug image 来源 run `30042473976`，promotion run `30065333387` 用 31 秒完成 exact digest carbon-copy；生产 run `upgrade-20260724T035638Z-61d5b363fe7c` 含 47,050,600 字节 PostgreSQL dump、应用 recreate 和运行态门禁约 45 秒。切换后官方 Codex `gpt-5.6-sol` 与 `grok-4.5` 各一次结构化 canary 均通过，阻断日志模式为 0。34/44 是该 diff 与当时 active inventory 的结果，不得固化成后续版本的固定数量。
+**当前生产**：`0.1.164` / `61d5b363fe7cd370f73517973aec361303afb77f`（run `upgrade-20260724T035638Z-61d5b363fe7c`）。**上一生产**：`13b41759f68a85d86c38fba4dad12f13b4792682`（`0.1.162`）。
+
+2026-07-24 的 `0.1.164` 发布验证了按 diff 收敛：planner 从 catalog 44 例选 34 例并 34/34 通过；debug image 来源 run `30042473976`；promotion `30065333387` 约 31 秒 exact digest carbon-copy；生产含约 47 MB dump 与应用切换约 45 秒；切换后官方 Codex `gpt-5.6-sol` 与 `grok-4.5` 各一次有意义 canary 通过，阻断日志模式 0。**必要耗时口径**约 CI 6.2m + promotion 31s + production 45s；34/44 是该 diff 与当时 active inventory 的结果，不得固化为后续固定数量。apply 后应用 `confirm-production-upgrade.sh` 归档 post-confirm；24h 后再 finalize。

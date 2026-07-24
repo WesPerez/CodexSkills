@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "production-live-confirmation.schema.json",
+  "title": "Sub2API Production Live Confirmation Evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "revision",
+    "digest",
+    "run_id",
+    "provider",
+    "client",
+    "request",
+    "result",
+    "assertions",
+    "verifier",
+    "procedure"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "kind": {
+      "type": "string",
+      "const": "production-live-confirmation"
+    },
+    "revision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^upgrade-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{12}$"
+    },
+    "provider": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_-]{0,31}$"
+    },
+    "client": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["official-codex"]
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "note": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      }
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "task_class"],
+      "properties": {
+        "model": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9._:-]+$"
+        },
+        "task_class": {
+          "type": "string",
+          "enum": ["structured-smoke", "semantic-smoke", "protocol-smoke"]
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "thread_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["passed", "http_or_transport_ok", "semantic_ok", "observed_at"],
+      "properties": {
+        "passed": {
+          "type": "boolean",
+          "const": true
+        },
+        "http_or_transport_ok": {
+          "type": "boolean",
+          "const": true
+        },
+        "semantic_ok": {
+          "type": "boolean",
+          "const": true
+        },
+        "observed_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+        }
+      }
+    },
+    "assertions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "passed"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9._:-]+$"
+          },
+          "passed": {
+            "type": "boolean",
+            "const": true
+          }
+        }
+      }
+    },
+    "verifier": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 128
+    },
+    "procedure": {
+      "type": "string",
+      "minLength": 20,
+      "maxLength": 2000
+    }
+  }
+}

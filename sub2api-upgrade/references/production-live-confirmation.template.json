@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "kind": "production-live-confirmation",
+  "revision": "0000000000000000000000000000000000000000",
+  "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "run_id": "upgrade-19700101T000000Z-000000000000",
+  "provider": "openai",
+  "client": {
+    "type": "official-codex",
+    "version": "0.0.0",
+    "note": "Official Codex client metadata was preserved by the installed client."
+  },
+  "request": {
+    "model": "gpt-5.6-sol",
+    "task_class": "structured-smoke",
+    "request_id": "optional-desensitized-id",
+    "thread_id": "optional-desensitized-thread"
+  },
+  "result": {
+    "passed": true,
+    "http_or_transport_ok": true,
+    "semantic_ok": true,
+    "observed_at": "1970-01-01T00:00:00Z"
+  },
+  "assertions": [
+    {
+      "name": "meaningful_completion",
+      "passed": true
+    },
+    {
+      "name": "no_unexplained_error_terminal",
+      "passed": true
+    }
+  ],
+  "verifier": "operator-or-agent-id",
+  "procedure": "Describe the exact official-Codex production canary performed for this provider after the image switch."
+}
