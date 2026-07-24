@@ -147,6 +147,19 @@ assert_plan_jq "plan-true-positive-streaming-boundary" "$U162" "$CAND_STREAM" '
   and ([.cases[].id] | index("R1-E2") != null)
   and ([.cases[].id] | index("R1-E3") != null)'
 
+CAND_CONTEXT="$(selection_candidate selection-context backend/internal/service/context_window.go context)"
+assert_plan_jq "plan-live-long-context-requires-inventory" "$U162" "$CAND_CONTEXT" '
+  ([.cases[].id] | index("R1-A1") != null)
+  and ([.cases[].id] | index("R1-A2") == null)
+  and ([.cases[].id] | index("R1-A3") == null)'
+
+INVENTORY_CONTEXT="$TMP/active-context.json"
+printf '%s\n' '{"schema_version":1,"environment":"production","observed_at":"2026-07-24T00:00:00Z","source":"read-only aggregate","providers":["openai"],"features":["long_context"],"notes":[]}' > "$INVENTORY_CONTEXT"
+assert_plan_jq "plan-live-long-context-with-inventory" "$U162" "$CAND_CONTEXT" '
+  ([.cases[].id] | index("R1-A2") != null)
+  and ([.cases[].id] | index("R1-A3") != null)' \
+  --active-inventory "$INVENTORY_CONTEXT"
+
 CAND_TEST_ONLY="$(selection_candidate selection-test-only backend/internal/service/openai_oauth_passthrough_test.go test)"
 assert_plan_jq "plan-test-only-does-not-select-runtime" "$U162" "$CAND_TEST_ONLY" '
   .selected_suites == ["core"]

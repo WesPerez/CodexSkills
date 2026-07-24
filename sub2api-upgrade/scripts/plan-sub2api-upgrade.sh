@@ -224,7 +224,7 @@ case_path_triggered() {
   case "$id" in
     R0-*) return 0 ;;
     R1-A1) suite_has_rule long_context '(^|,)lc\.(context|compact)(,|$)' ;;
-    R1-A2|R1-A3) suite_has_rule long_context '(^|,)lc\.context(,|$)' ;;
+    R1-A2|R1-A3) suite_has_rule long_context '(^|,)lc\.context(,|$)' && inventory_has_feature long_context ;;
     R1-A4) suite_has_rule long_context '(^|,)lc\.billing(,|$)' ;;
     R1-M*) suite_has_rule migration '(^|,)mig\.schema(,|$)' ;;
     R1-B1) suite_has_rule vision_media '(^|,)vm\.' ;;
@@ -234,7 +234,7 @@ case_path_triggered() {
     R1-C*) suite_has_rule grok_tools '(^|,)gt\.tools(,|$)' ;;
     R1-D1) suite_has_rule model_switch '(^|,)ms\.routing(,|$)' && inventory_has_feature model_switch ;;
     R1-D2) suite_has_rule model_switch '(^|,)ms\.effort(,|$)' && inventory_has_feature sharedchat ;;
-    R1-D3) suite_has_rule model_switch '(^|,)ms\.routing(,|$)' ;;
+    R1-D3) suite_has_rule model_switch '(^|,)ms\.routing(,|$)' && inventory_has_feature model_switch ;;
     R1-E*) suite_has_rule streaming '(^|,)st\.stream(,|$)' ;;
     R1-F1) suite_has_rule codex_sharedchat '(^|,)cs\.gateway(,|$)' && inventory_has_feature codex ;;
     R1-F2) suite_has_rule codex_sharedchat '(^|,)cs\.passthrough(,|$)' && inventory_has_feature sharedchat ;;

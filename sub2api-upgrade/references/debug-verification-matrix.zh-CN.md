@@ -25,6 +25,8 @@ release 模式中三类证据有机器契约：R0-1 必须是 `candidate-identit
 
 CI 绿不能替代 L2/L3；L2 的 raw HTTP 也不能冒充官方 Codex L3。
 
+如果生产活跃 provider 没有 debug-only 身份，不能复制生产 token 或让同一 OAuth refresh owner 双端运行。此时允许把切换前 case 证据收束为精确 SHA CI、同 SHA 合成协议/runtime、官方客户端 metadata、生产只读 active inventory 和已证明 image rollback；切换后必须在生产现有链路上为每个活跃 provider 做一次有意义 canary 并检查日志。该例外只解决身份隔离，不放宽 migration、schema、错误终态、sticky/pool 或回退门禁。
+
 ## R0 发布阻断门禁
 
 | ID | 场景 | 核心断言 |

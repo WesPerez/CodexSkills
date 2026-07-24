@@ -54,6 +54,7 @@ fi
 if [[ "${1:-}" == "compose" ]]; then
   if [[ " $* " == *" logs "* ]]; then
     if [[ "${SUB2API_DEBUG_ADAPTER_TEST_LOG_FAIL:-0}" == "1" ]]; then echo fail >&2; exit 1; fi
+    if [[ "${SUB2API_DEBUG_ADAPTER_TEST_LOG_EMPTY:-0}" == "1" ]]; then exit 0; fi
     printf '%s\n' "${SUB2API_DEBUG_ADAPTER_TEST_LOG_CONTENT:-info healthy line}"
     exit 0
   fi
@@ -148,6 +149,12 @@ make_run "$TMP/run-release" release
 assert_exit "release-evidence-contract" 0 bash "$RUNNER" run --run-dir "$TMP/run-release" --case R0-2
 [[ "$(matrix_case_status "$TMP/run-release" R0-2)" == "passed" ]]
 
+make_run "$TMP/run-startup-empty-log" release
+export SUB2API_DEBUG_ADAPTER_TEST_LOG_EMPTY=1
+assert_exit "startup-empty-log-is-not-a-blocker" 0 bash "$RUNNER" run --run-dir "$TMP/run-startup-empty-log" --case R0-2
+unset SUB2API_DEBUG_ADAPTER_TEST_LOG_EMPTY
+[[ "$(matrix_case_status "$TMP/run-startup-empty-log" R0-2)" == "passed" ]]
+
 make_run "$TMP/run-manual"
 assert_exit "manual-78" 78 bash "$RUNNER" run --run-dir "$TMP/run-manual" --case R0-6
 [[ "$(matrix_case_status "$TMP/run-manual" R0-6)" == "needs_manual" ]]
@@ -190,6 +197,12 @@ export SUB2API_DEBUG_ADAPTER_TEST_LOG_FAIL=1
 assert_exit "log-collect-fail-blocked" 71 bash "$RUNNER" run --run-dir "$TMP/run-logfail" --case R0-7
 unset SUB2API_DEBUG_ADAPTER_TEST_LOG_FAIL
 [[ "$(matrix_case_status "$TMP/run-logfail" R0-7)" == "blocked" ]]
+
+make_run "$TMP/run-logempty"
+export SUB2API_DEBUG_ADAPTER_TEST_LOG_EMPTY=1
+assert_exit "log-gate-empty-blocked" 71 bash "$RUNNER" run --run-dir "$TMP/run-logempty" --case R0-7
+unset SUB2API_DEBUG_ADAPTER_TEST_LOG_EMPTY
+[[ "$(matrix_case_status "$TMP/run-logempty" R0-7)" == "blocked" ]]
 
 make_run "$TMP/run-logfatal"
 export SUB2API_DEBUG_ADAPTER_TEST_LOG_CONTENT="panic: boom response.failed"

@@ -82,6 +82,8 @@
 - **开发循环**：`R0 + 当前失败/受影响 case + 日志窗`，缩短定位周期。
 - **发布门禁**：最终 SHA 的 `R0 + U/M diff 精确触发 case + 生产活跃能力 canary + 职责兜底 + 回滚演练 + 日志窗`。未启用能力留在 catalog，不为凑全场景执行。
 
+生产活跃 provider 没有 debug-only 身份时，不复制生产凭据。切换前使用精确 SHA CI、同 SHA 合成协议/runtime、生产只读 inventory、切换前基线和 image rollback 证明；切换后对每个活跃 provider 各做一次受控 canary。此闭环不适用于 migration/schema、认证写入或无法 image-only rollback 的变更。
+
 使用 `run-debug-matrix.sh` 管理 attempt：失败或 blocked 后只有显式 `--new-attempt` 才能复测；running attempt 只能续接。release mode 的 passed case 必须带证据，R0-7/log executor 必须带日志窗，skip 必须说明原因。任何 commit 变化都必须重跑发布门禁。最终只接受 `seal` 生成且经 `verify-release-evidence.sh` 复核的 `release-evidence.json`。
 
 用 `run-debug-adapter.sh run-ready` 代替逐条启动 runner。它对固定 debug 环境加跨 run 全局锁、按 plan 串行、把 R0-7 放到最后，并从 matrix state 恢复 running/pending case；不会并发争用账号、fixture 或日志。adapter catalog 在 matrix init 时复制并绑定 hash；runner 不接收命令、URL、Compose 目录或服务名。每个 attempt 记录 `prepared -> executing -> adapter_done -> logs_done -> finished` checkpoint；`no_replay` 中断后 blocked，不自动重复生成或计费。

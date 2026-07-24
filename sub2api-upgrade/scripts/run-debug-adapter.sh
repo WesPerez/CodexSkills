@@ -449,7 +449,7 @@ finalize_result() {
   if [[ "$(jq -r '.log_scope' <<<"$meta")" != "none" ]]; then
     if [[ -s "$attempt_dir/log-window.raw" ]]; then
       log_path="$attempt_dir/log-window.raw"
-    elif [[ "$result" == "passed" ]]; then
+    elif [[ "$result" == "passed" && ( "$CASE_ID" == "R0-7" || "$adapter_id" == "log-gate" ) ]]; then
       result="blocked"; adapter_rc=$EC_BLOCKED; note="debug log window is empty"
     fi
   fi
